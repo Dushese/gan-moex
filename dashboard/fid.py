@@ -7,9 +7,13 @@ from scipy.linalg import sqrtm
 from TSGBench.src.ts2vec import initialize_ts2vec
 import torch
 
-with open("fid_model.pkl", 'rb') as f:
+from library.constants import WINDOW_SIZE
+
+with open("dashboard/fid_model.pkl", 'rb') as f:
     fid_model = pickle.load(f)
-    
+
+# fid_model = initialize_ts2vec(np.transpose(ori_data, (0, 2, 1)),torch.device('cpu'))
+
 def find_length(data):
     if len(data.shape)>1:
         return 0
@@ -21,7 +25,7 @@ def find_length(data):
     local_max = argrelextrema(auto_corr, np.greater)[0]
     try:
         max_local_max = np.argmax([auto_corr[lcm] for lcm in local_max])
-        if local_max[max_local_max]<3 or local_max[max_local_max]>300:
+        if local_max[max_local_max] < 3 or local_max[max_local_max]>300:
             return 125
         return local_max[max_local_max]+base
     except Exception as e:
@@ -60,8 +64,8 @@ def preprocess(data, step=1):
 
     
 def calculate_fid(ori_data, gen_data, fid_model=fid_model):
-    ori_data = ori_data.to_numpy()
-    gen_data = gen_data.to_numpy()
+    ori_data = ori_data.numpy()
+    gen_data = gen_data.numpy()
     ori_data = preprocess(ori_data)
     gen_data = preprocess(gen_data)
     # fid_model = initialize_ts2vec(np.transpose(ori_data, (0, 2, 1)),torch.device('cpu'))

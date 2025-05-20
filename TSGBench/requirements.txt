@@ -1,0 +1,11 @@
+numpy
+matplotlib
+scipy
+dtaidistance
+tensorflow
+scikit-learn
+torch
+statsmodels
+tslearn
+seaborn
+mgzip

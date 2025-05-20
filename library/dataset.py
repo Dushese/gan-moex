@@ -14,7 +14,7 @@ def get_prices(n_assets: int = N_ASSETS) -> pd.DataFrame:
     """
     # Check that data exists
     tickers_file = DATA_FOLDER / 'tickers.csv'
-    # print('AAAAAAA', DATA_FOLDER, DATA_FOLDER.exists(), tickers_file, tickers_file.exists())
+    print('AAAAAAA', DATA_FOLDER, DATA_FOLDER.exists(), tickers_file, tickers_file.exists())
     assert DATA_FOLDER.exists() and CLOSE_FOLDER.exists() and tickers_file.exists()
 
     # Read tickers list

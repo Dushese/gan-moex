@@ -6,15 +6,17 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from torch import nn
 from timeit import default_timer as timer
+import wandb
 from IPython.display import clear_output
 
-from library.constants import DEVICE, N_ASSETS, WINDOW_SIZE
+from dashboard.fid import calculate_fid
+from library.constants import DEVICE, N_ASSETS, WINDOW_SIZE, BATCH_SIZE
 from library.correlations import plot_correlation_matrix
 from library.generation import generate_samples, _normalize_returns
 
 from tqdm.auto import tqdm
 
-SAVE_PATH = Path('models/')
+SAVE_PATH = Path('library/models/')
 SAVE_PATH.mkdir(exist_ok=True)
 
 loss_fn = nn.BCELoss()
@@ -85,6 +87,15 @@ def train_epoch(generator, discriminator, generator_optimizer, discriminator_opt
         discriminator_losses.append(discriminator_loss.item())
         generator_losses.append(generator_loss.item())
     # corr_loss = np.mean(np.corrcoef(fake_samples[-1].detach().numpy()) - np.corrcoef(real_samples[-1]))#generate_samples(generator, dataloader.dataset.assets).corr()
+        # Store losses
+    flatted_fake = fake_samples.permute(1, 0, 2).reshape(5, -1).detach().numpy()
+    flatted_real = real_samples.permute(1, 0, 2).reshape(5, -1).detach().numpy()
+    wandb.log({'train_gen_loss': np.mean(generator_losses),
+               'train_disc_loss': np.mean(discriminator_losses_real),
+               'correlation_delta': np.mean(np.abs(np.corrcoef(flatted_fake) - np.corrcoef(flatted_real))),
+                'mean_delta': np.abs(flatted_fake.mean(axis=1) - flatted_real.mean(axis=1)).mean(),
+                'fid': calculate_fid(real_samples[-1].transpose(1, 0), fake_samples[-1].transpose(1, 0))
+               })
     return np.mean(generator_losses), np.mean(discriminator_losses_real), np.mean(discriminator_losses)
 
 
@@ -196,6 +207,7 @@ def load_gan(model_prefix: str, generator=None, discriminator=None, generator_op
     Load latest epoch if not specified
     """
     model_path = SAVE_PATH / model_prefix
+    print('model_path = ', model_path)
     assert model_path.exists()
     if epoch is None:
         # Find latest checkpoint
@@ -229,25 +241,36 @@ def load_gan(model_prefix: str, generator=None, discriminator=None, generator_op
     if discriminator_optimizer is not None:
         discriminator_optimizer.load_state_dict(checkpoint['discriminator_optimizer_state_dict'])
 
-def train_gan(generator, discriminator, generator_optimizer, discriminator_optimizer, dataloader, df_returns_real: pd.DataFrame, n_epochs: int, log_frequency: int, save_frequency: int, model_prefix: str) -> tuple[list[float], list[float], list[float]]:
+def train_gan(generator,
+              discriminator,
+              generator_optimizer,
+              discriminator_optimizer,
+              dataloader,
+              df_returns_real: pd.DataFrame,
+              n_epochs: int,
+              log_frequency: int,
+              save_frequency: int,
+              model_prefix: str
+              ) -> tuple[list[float], list[float], list[float]]:
     """
     Train gan
     """
+
     torch.manual_seed(1)
     start = timer()
 
     # Save losses on each epoch
     generator_losses = []
+    discriminator_losses_real = []
     discriminator_losses = []
-    corr_losses = []
 
     for epoch in tqdm(range(1, n_epochs + 1)):
         # Train one epoch
-        generator_loss, discriminator_loss, avg_corr = train_epoch(generator, discriminator, generator_optimizer, discriminator_optimizer, dataloader)
-        # Store losses
+        generator_loss, discriminator_loss_real, discriminator_loss = train_epoch(generator, discriminator, generator_optimizer, discriminator_optimizer, dataloader)
+
         generator_losses.append(generator_loss)
+        discriminator_losses_real.append(discriminator_loss_real)
         discriminator_losses.append(discriminator_loss)
-        corr_losses.append(avg_corr)
 
         # Plot samples
         if epoch % log_frequency == 0 or epoch == n_epochs:
@@ -258,11 +281,11 @@ def train_gan(generator, discriminator, generator_optimizer, discriminator_optim
             print(f'{log_frequency} epochs train time: {train_time:.1f}s. Estimated train time: {((n_epochs - epoch) * train_time / log_frequency / 60):.1f}m')
             start = timer()
             # Plot samples
-            plot_gan(generator, dataloader.dataset.assets, generator_losses, discriminator_losses, corr_losses, epoch, df_returns_real)
+            plot_gan(generator, dataloader.dataset.assets, generator_losses, discriminator_losses_real, discriminator_losses, epoch, df_returns_real)
 
         # Save model
         if epoch % save_frequency == 0 or epoch == n_epochs:
             save_gan(generator, discriminator, generator_optimizer, discriminator_optimizer, epoch, model_prefix)
 
     # Return losses
-    return generator_losses, discriminator_losses, corr_losses
+    return generator_losses, discriminator_losses_real, discriminator_losses
