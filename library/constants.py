@@ -38,6 +38,6 @@ def get_shifted_returns(df_returns: pd.DataFrame) -> pd.DataFrame:
 ###################################################################################
 
 
-WINDOW_SIZE = 360#N_TRADING_DAYS // 2
-BATCH_SIZE = 256 # TODO
+WINDOW_SIZE = 360#N_TRADING_DAYS // 2 # TODO
+BATCH_SIZE = 256
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
