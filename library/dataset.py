@@ -8,7 +8,7 @@ from library.download_data import DATA_FOLDER, CLOSE_FOLDER
 from library.constants import N_ASSETS, WINDOW_SIZE, BATCH_SIZE
 
 
-def get_prices(n_assets: int = N_ASSETS) -> pd.DataFrame:
+def get_prices(n_assets: int = N_ASSETS, cut_data='2023-07-21') -> pd.DataFrame:
     """
     Load prices DataFrame without NaNs
     """
@@ -38,7 +38,7 @@ def get_prices(n_assets: int = N_ASSETS) -> pd.DataFrame:
     print(f'Chosen tickers: {chosen_tickers}')
 
     # берем период, аналогичный Максимовскому
-    df = df[df.index <= '2023-07-21']
+    df = df[df.index <= cut_data]
 
     print(f'Length before dropping NaNs: {len(df)}')
     # Drop NaNs
@@ -85,12 +85,12 @@ class ReturnsDataset(Dataset):
         return self.length
 
 
-def get_pytorch_datataset(window_size: int = WINDOW_SIZE, batch_size: int = BATCH_SIZE, subset_columns: list[str] | None = None) -> tuple[pd.DataFrame, Dataset, DataLoader, int, int]:
+def get_pytorch_datataset(cut_data='2023-07-21', window_size: int = WINDOW_SIZE, batch_size: int = BATCH_SIZE, subset_columns: list[str] | None = None) -> tuple[pd.DataFrame, Dataset, DataLoader, int, int]:
     """
     Get DataSet, DataLoader, number of assets
     """
     # Load returns
-    df_returns = get_log_returns(get_prices())
+    df_returns = get_log_returns(get_prices(N_ASSETS, cut_data))
 
     # Get subset of columns
     if subset_columns is not None:
